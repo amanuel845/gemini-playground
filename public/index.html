@@ -5,73 +5,252 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gemini API Playground</title>
     <style>
-        body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f8fafc; }
-        h1 { color: #38bdf8; }
-        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
-        textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; font-family: inherit; font-size: 1rem; resize: vertical; }
-        button { background: #38bdf8; color: #0f172a; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 12px; width: 100%; font-size: 1rem; transition: background 0.2s; }
+        :root { --bg: #0f172a; --card: #1e293b; --accent: #38bdf8; --text: #f8fafc; --muted: #94a3b8; --border: #334155; }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); padding: 20px; max-width: 960px; margin: 0 auto; }
+        h1 { color: var(--accent); margin-bottom: 24px; }
+        .tabs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 12px; }
+        .tab { padding: 8px 16px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--muted); cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+        .tab:hover { border-color: var(--accent); color: var(--accent); }
+        .tab.active { background: var(--accent); color: var(--bg); border-color: var(--accent); font-weight: 600; }
+        .panel { display: none; }
+        .panel.active { display: block; }
+        .card { background: var(--card); padding: 20px; border-radius: 12px; margin-bottom: 16px; border: 1px solid var(--border); }
+        label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 6px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+        input, textarea, select { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); font-family: inherit; font-size: 0.95rem; margin-bottom: 12px; }
+        textarea { resize: vertical; min-height: 80px; }
+        button { background: var(--accent); color: var(--bg); border: none; padding: 10px 20px; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.95rem; transition: background 0.2s; }
         button:hover { background: #7dd3fc; }
-        button:disabled { background: #475569; cursor: not-allowed; }
-        #output { margin-top: 20px; padding: 16px; border-radius: 8px; background: #0f172a; border: 1px solid #334155; white-space: pre-wrap; line-height: 1.6; }
+        button:disabled { background: var(--muted); cursor: not-allowed; }
+        .output { margin-top: 12px; padding: 16px; border-radius: 8px; background: var(--bg); border: 1px solid var(--border); white-space: pre-wrap; line-height: 1.6; min-height: 60px; }
         .error { color: #f87171; }
         .success { color: #4ade80; }
         .loading { color: #facc15; }
+        .row { display: flex; gap: 12px; }
+        .row > * { flex: 1; }
+        @media (max-width: 600px) { .row { flex-direction: column; } }
     </style>
 </head>
 <body>
     <h1>✨ Gemini API Playground</h1>
 
-    <div class="card">
-        <textarea id="prompt" rows="4" placeholder="Enter your prompt here... e.g., 'Explain quantum entanglement in simple terms.'"></textarea>
-        <button id="generateBtn" onclick="generate()">Generate</button>
+    <div class="tabs">
+        <button class="tab active" data-panel="interactions">Interactions</button>
+        <button class="tab" data-panel="generate">GenerateContent</button>
+        <button class="tab" data-panel="files">Files</button>
+        <button class="tab" data-panel="embeddings">Embeddings</button>
+        <button class="tab" data-panel="file-search">File Search</button>
+        <button class="tab" data-panel="models">Models</button>
+        <button class="tab" data-panel="live">Live (WS)</button>
+        <button class="tab" data-panel="music">Live Music (WS)</button>
     </div>
 
-    <div class="card">
-        <h2>Output</h2>
-        <div id="output">Waiting for input...</div>
+    <!-- Interactions API Panel -->
+    <div id="panel-interactions" class="panel active">
+        <div class="card">
+            <label>Model</label>
+            <select id="int-model"><option value="gemini-3.8-flash">gemini-3.8-flash</option><option value="gemini-3.5-flash">gemini-3.5-flash</option></select>
+            <label>Prompt</label>
+            <textarea id="int-prompt" placeholder="Enter your prompt...">Explain quantum entanglement in simple terms.</textarea>
+            <button onclick="runInteractions()">Send</button>
+            <div id="int-output" class="output">Waiting...</div>
+        </div>
+    </div>
+
+    <!-- GenerateContent Panel -->
+    <div id="panel-generate" class="panel">
+        <div class="card">
+            <label>Model</label>
+            <select id="gen-model"><option value="gemini-3.8-flash">gemini-3.8-flash</option><option value="gemini-3.5-flash">gemini-3.5-flash</option></select>
+            <label>Contents (JSON)</label>
+            <textarea id="gen-contents" rows="4">[{"text": "What is the capital of France?"}]</textarea>
+            <button onclick="runGenerate()">Generate</button>
+            <div id="gen-output" class="output">Waiting...</div>
+        </div>
+    </div>
+
+    <!-- Files Panel -->
+    <div id="panel-files" class="panel">
+        <div class="card">
+            <label>Upload File</label>
+            <input type="file" id="file-input" onchange="uploadFile()">
+            <div id="file-output" class="output">No files uploaded.</div>
+        </div>
+    </div>
+
+    <!-- Embeddings Panel -->
+    <div id="panel-embeddings" class="panel">
+        <div class="card">
+            <label>Text to Embed</label>
+            <textarea id="embed-input" placeholder="Enter text...">The quick brown fox jumps over the lazy dog.</textarea>
+            <button onclick="runEmbed()">Embed</button>
+            <div id="embed-output" class="output">Waiting...</div>
+        </div>
+    </div>
+
+    <!-- File Search Panel -->
+    <div id="panel-file-search" class="panel">
+        <div class="card">
+            <label>Query</label>
+            <textarea id="fs-query" placeholder="Ask a question about your indexed documents...">What is the main topic of the document?</textarea>
+            <label>File Search Store Name</label>
+            <input type="text" id="fs-store" placeholder="e.g., fileSearchStores/abc123">
+            <button onclick="runFileSearch()">Search</button>
+            <div id="fs-output" class="output">Waiting...</div>
+        </div>
+    </div>
+
+    <!-- Models Panel -->
+    <div id="panel-models" class="panel">
+        <div class="card">
+            <button onclick="listModels()">List Available Models</button>
+            <div id="models-output" class="output">Waiting...</div>
+        </div>
+    </div>
+
+    <!-- Live API & Live Music Panels (Placeholder) -->
+    <div id="panel-live" class="panel">
+        <div class="card">
+            <p style="color: var(--muted);">Live API (WebSocket) requires a separate relay server.</p>
+            <p style="color: var(--muted);">See the "Real-time Relay" section in the documentation.</p>
+        </div>
+    </div>
+    <div id="panel-music" class="panel">
+        <div class="card">
+            <p style="color: var(--muted);">Live Music API (WebSocket) requires a separate relay server.</p>
+            <p style="color: var(--muted);">See the "Real-time Relay" section in the documentation.</p>
+        </div>
     </div>
 
     <script>
-        async function generate() {
-            const btn = document.getElementById('generateBtn');
-            const outputDiv = document.getElementById('output');
-            const prompt = document.getElementById('prompt').value.trim();
+        // Tab Switching
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                tab.classList.add('active');
+                document.getElementById('panel-' + tab.dataset.panel).classList.add('active');
+            });
+        });
 
-            if (!prompt) {
-                outputDiv.innerHTML = '<span class="error">Please enter a prompt.</span>';
-                return;
-            }
-
-            btn.disabled = true;
-            outputDiv.innerHTML = '<span class="loading">Thinking...</span>';
-
+        // Interactions API
+        async function runInteractions() {
+            const btn = event.target; btn.disabled = true;
+            const out = document.getElementById('int-output'); out.innerHTML = '<span class="loading">Thinking...</span>';
             try {
-                const response = await fetch('/api/chat', {
+                const res = await fetch('/api/interactions', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ prompt })
+                    body: JSON.stringify({
+                        model: document.getElementById('int-model').value,
+                        input: document.getElementById('int-prompt').value,
+                    }),
                 });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(data.error || 'Something went wrong');
-                }
-
-                outputDiv.innerHTML = `<span class="success">Response:</span>\n\n${data.text}`;
-            } catch (error) {
-                outputDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
-            } finally {
-                btn.disabled = false;
-            }
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Request failed');
+                out.innerHTML = `<span class="success">Response:</span>\n\n${data.text}`;
+            } catch (e) { out.innerHTML = `<span class="error">Error: ${e.message}</span>`; }
+            finally { btn.disabled = false; }
         }
 
-        // Allow Ctrl+Enter to submit
-        document.getElementById('prompt').addEventListener('keydown', (e) => {
-            if (e.ctrlKey && e.key === 'Enter') {
-                generate();
-            }
-        });
+        // GenerateContent API
+        async function runGenerate() {
+            const btn = event.target; btn.disabled = true;
+            const out = document.getElementById('gen-output'); out.innerHTML = '<span class="loading">Generating...</span>';
+            try {
+                const contents = JSON.parse(document.getElementById('gen-contents').value);
+                const res = await fetch('/api/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: document.getElementById('gen-model').value, contents }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Request failed');
+                out.innerHTML = `<span class="success">Response:</span>\n\n${data.text}`;
+            } catch (e) { out.innerHTML = `<span class="error">Error: ${e.message}</span>`; }
+            finally { btn.disabled = false; }
+        }
+
+        // Files API
+        async function uploadFile() {
+            const fileInput = document.getElementById('file-input');
+            const out = document.getElementById('file-output');
+            if (!fileInput.files[0]) return;
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            reader.onload = async () => {
+                out.innerHTML = '<span class="loading">Uploading...</span>';
+                try {
+                    const res = await fetch('/api/files', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            fileData: reader.result.split(',')[1],
+                            mimeType: file.type,
+                            displayName: file.name,
+                        }),
+                    });
+                    const data = await res.json();
+                    if (!res.ok) throw new Error(data.error || 'Upload failed');
+                    out.innerHTML = `<span class="success">Uploaded!</span>\nURI: ${data.file.uri}\nName: ${data.file.name}`;
+                } catch (e) { out.innerHTML = `<span class="error">Error: ${e.message}</span>`; }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // Embeddings API
+        async function runEmbed() {
+            const btn = event.target; btn.disabled = true;
+            const out = document.getElementById('embed-output'); out.innerHTML = '<span class="loading">Embedding...</span>';
+            try {
+                const res = await fetch('/api/embed', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: 'gemini-embedding-2',
+                        contents: [{ text: document.getElementById('embed-input').value }],
+                    }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Request failed');
+                out.innerHTML = `<span class="success">Embedding (first 5 dims):</span>\n${data.embeddings[0].values.slice(0, 5).join(', ')}...`;
+            } catch (e) { out.innerHTML = `<span class="error">Error: ${e.message}</span>`; }
+            finally { btn.disabled = false; }
+        }
+
+        // File Search API
+        async function runFileSearch() {
+            const btn = event.target; btn.disabled = true;
+            const out = document.getElementById('fs-output'); out.innerHTML = '<span class="loading">Searching...</span>';
+            try {
+                const res = await fetch('/api/file-search', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        action: 'query',
+                        fileSearchStoreName: document.getElementById('fs-store').value,
+                        query: document.getElementById('fs-query').value,
+                    }),
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Request failed');
+                out.innerHTML = `<span class="success">Answer:</span>\n${data.text}\n\n<span class="success">Citations:</span>\n${data.citations.map(c => `- ${c.fileName}: ${c.source}`).join('\n') || 'None'}`;
+            } catch (e) { out.innerHTML = `<span class="error">Error: ${e.message}</span>`; }
+            finally { btn.disabled = false; }
+        }
+
+        // Models API
+        async function listModels() {
+            const btn = event.target; btn.disabled = true;
+            const out = document.getElementById('models-output'); out.innerHTML = '<span class="loading">Loading...</span>';
+            try {
+                const res = await fetch('/api/models');
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Request failed');
+                out.innerHTML = `<span class="success">Available Models:</span>\n${data.models.map(m => `• ${m.name}`).join('\n')}`;
+            } catch (e) { out.innerHTML = `<span class="error">Error: ${e.message}</span>`; }
+            finally { btn.disabled = false; }
+        }
     </script>
 </body>
 </html>
