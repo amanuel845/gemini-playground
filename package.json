@@ -1,5 +1,5 @@
 {
-  "name": "gemini-playground",
+  "name": "gemini-api-playground",
   "version": "1.0.0",
   "private": true,
   "type": "module",
@@ -7,6 +7,6 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "@google/genai": "latest"
+    "@google/genai": "^1.0.0"
   }
 }
