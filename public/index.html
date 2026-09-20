@@ -108,13 +108,26 @@
         </div>
     </div>
 
-    <!-- Live API & Live Music Panels (Placeholder) -->
-    <div id="panel-live" class="panel">
-        <div class="card">
-            <p style="color: var(--muted);">Live API (WebSocket) requires a separate relay server.</p>
-            <p style="color: var(--muted);">See the "Real-time Relay" section in the documentation.</p>
+<!-- Live API Panel -->
+<div id="panel-live" class="panel">
+    <div class="card">
+        <label>Relay Server URL (wss://)</label>
+        <input type="text" id="relay-url" value="wss://gemini-live-relay-production-6db7.up.railway.app" placeholder="wss://your-app.up.railway.app">
+        
+        <div class="row">
+            <button id="connect-btn" onclick="connectLive()">Connect</button>
+            <button id="disconnect-btn" onclick="disconnectLive()" disabled>Disconnect</button>
         </div>
+        
+        <label>Send a Message</label>
+        <div class="row">
+            <input type="text" id="live-input" placeholder="Type a message to Gemini..." disabled>
+            <button id="send-btn" onclick="sendLiveMessage()" disabled>Send</button>
+        </div>
+        
+        <div id="live-output" class="output" style="max-height: 400px; overflow-y: auto;">Not connected.</div>
     </div>
+</div>
     <div id="panel-music" class="panel">
         <div class="card">
             <p style="color: var(--muted);">Live Music API (WebSocket) requires a separate relay server.</p>
@@ -251,6 +264,101 @@
             } catch (e) { out.innerHTML = `<span class="error">Error: ${e.message}</span>`; }
             finally { btn.disabled = false; }
         }
-    </script>
+
+// --- Live API (WebSocket Relay) Logic ---
+let liveWs = null;
+
+function connectLive() {
+    const url = document.getElementById('relay-url').value.trim();
+    const output = document.getElementById('live-output');
+    
+    if (!url) {
+        output.innerHTML = '<span class="error">Please enter a Relay URL.</span>';
+        return;
+    }
+    
+    output.innerHTML = '<span class="loading">Connecting to relay...</span>';
+    
+    try {
+        liveWs = new WebSocket(url);
+        
+        liveWs.onopen = () => {
+            output.innerHTML = '<span class="success">Connected to relay!</span>\nWaiting for Gemini...';
+            document.getElementById('connect-btn').disabled = true;
+            document.getElementById('disconnect-btn').disabled = false;
+            document.getElementById('live-input').disabled = false;
+            document.getElementById('send-btn').disabled = false;
+        };
+        
+        liveWs.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                
+                if (message.text) {
+                    output.innerHTML += `\n\n<span class="success">Gemini:</span> ${message.text}`;
+                }
+                else if (message.audio) {
+                    const audio = new Audio("data:audio/wav;base64," + message.audio);
+                    audio.play();
+                    output.innerHTML += `\n\n<span class="success">Gemini (audio):</span> [Playing...]`;
+                }
+                else if (message.type) {
+                    output.innerHTML += `\n\n<span style="color: #94a3b8;">[System: ${message.type}]</span>`;
+                }
+                
+                output.scrollTop = output.scrollHeight;
+            } catch (e) {
+                console.error("Error parsing message:", e);
+            }
+        };
+        
+        liveWs.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            output.innerHTML += `\n<span class="error">WebSocket Error. Check console.</span>`;
+        };
+        
+        liveWs.onclose = () => {
+            output.innerHTML += `\n<span class="loading">Disconnected from relay.</span>`;
+            document.getElementById('connect-btn').disabled = false;
+            document.getElementById('disconnect-btn').disabled = true;
+            document.getElementById('live-input').disabled = true;
+            document.getElementById('send-btn').disabled = true;
+            liveWs = null;
+        };
+        
+    } catch (e) {
+        output.innerHTML = `<span class="error">Failed to connect: ${e.message}</span>`;
+    }
+}
+
+function disconnectLive() {
+    if (liveWs) {
+        liveWs.close();
+    }
+}
+
+function sendLiveMessage() {
+    const input = document.getElementById('live-input');
+    const text = input.value.trim();
+    
+    if (!text || !liveWs || liveWs.readyState !== WebSocket.OPEN) return;
+    
+    const output = document.getElementById('live-output');
+    output.innerHTML += `\n\n<span style="color: #94a3b8;">You:</span> ${text}`;
+    
+    liveWs.send(JSON.stringify({ text }));
+    
+    input.value = '';
+    output.scrollTop = output.scrollHeight;
+}
+
+// Allow Enter key to send
+const liveInputEl = document.getElementById('live-input');
+if (liveInputEl) {
+    liveInputEl.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') sendLiveMessage();
+    });
+}
+</script>
 </body>
 </html>
