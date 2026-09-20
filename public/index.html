@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini API Playground</title>
+    <style>
+        body { font-family: system-ui, -apple-system, sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #0f172a; color: #f8fafc; }
+        h1 { color: #38bdf8; }
+        .card { background: #1e293b; padding: 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1); }
+        textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #334155; background: #0f172a; color: white; box-sizing: border-box; font-family: inherit; font-size: 1rem; resize: vertical; }
+        button { background: #38bdf8; color: #0f172a; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 12px; width: 100%; font-size: 1rem; transition: background 0.2s; }
+        button:hover { background: #7dd3fc; }
+        button:disabled { background: #475569; cursor: not-allowed; }
+        #output { margin-top: 20px; padding: 16px; border-radius: 8px; background: #0f172a; border: 1px solid #334155; white-space: pre-wrap; line-height: 1.6; }
+        .error { color: #f87171; }
+        .success { color: #4ade80; }
+        .loading { color: #facc15; }
+    </style>
+</head>
+<body>
+    <h1>✨ Gemini API Playground</h1>
+
+    <div class="card">
+        <textarea id="prompt" rows="4" placeholder="Enter your prompt here... e.g., 'Explain quantum entanglement in simple terms.'"></textarea>
+        <button id="generateBtn" onclick="generate()">Generate</button>
+    </div>
+
+    <div class="card">
+        <h2>Output</h2>
+        <div id="output">Waiting for input...</div>
+    </div>
+
+    <script>
+        async function generate() {
+            const btn = document.getElementById('generateBtn');
+            const outputDiv = document.getElementById('output');
+            const prompt = document.getElementById('prompt').value.trim();
+
+            if (!prompt) {
+                outputDiv.innerHTML = '<span class="error">Please enter a prompt.</span>';
+                return;
+            }
+
+            btn.disabled = true;
+            outputDiv.innerHTML = '<span class="loading">Thinking...</span>';
+
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ prompt })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Something went wrong');
+                }
+
+                outputDiv.innerHTML = `<span class="success">Response:</span>\n\n${data.text}`;
+            } catch (error) {
+                outputDiv.innerHTML = `<span class="error">Error: ${error.message}</span>`;
+            } finally {
+                btn.disabled = false;
+            }
+        }
+
+        // Allow Ctrl+Enter to submit
+        document.getElementById('prompt').addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                generate();
+            }
+        });
+    </script>
+</body>
+</html>
