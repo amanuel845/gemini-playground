@@ -13,12 +13,18 @@ export default async function handler(req, res) {
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-
     const result = await ai.models.list();
-    console.log('keys:', Object.keys(result));
-    console.log('raw:', JSON.stringify(result, null, 2).slice(0, 800));
 
-    return res.status(200).json({ models: result.models });
+    return res.status(200).json({
+      debug: {
+        type: typeof result,
+        isArray: Array.isArray(result),
+        keys: Object.keys(result),
+        sample: JSON.stringify(result, (k, v) =>
+          typeof v === 'function' ? '[fn]' : v
+        ).slice(0, 800),
+      },
+    });
   } catch (error) {
     console.error('Models API Error:', error);
     return res.status(500).json({ error: 'Failed to list models.', details: error.message });
