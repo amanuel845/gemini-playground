@@ -13,18 +13,18 @@ export default async function handler(req, res) {
 
   try {
     const ai = new GoogleGenAI({ apiKey });
-    const result = await ai.models.list();
+    const pager = await ai.models.list();
 
-    return res.status(200).json({
-      debug: {
-        type: typeof result,
-        isArray: Array.isArray(result),
-        keys: Object.keys(result),
-        sample: JSON.stringify(result, (k, v) =>
-          typeof v === 'function' ? '[fn]' : v
-        ).slice(0, 800),
-      },
-    });
+    const models = [];
+    for await (const model of pager) {
+      models.push(model);
+    }
+
+    if (!models.length) {
+      console.warn('models.list() returned zero models');
+    }
+
+    return res.status(200).json({ models });
   } catch (error) {
     console.error('Models API Error:', error);
     return res.status(500).json({ error: 'Failed to list models.', details: error.message });
